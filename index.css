@@ -4,16 +4,29 @@ body {
 }
 
 .column {
-  width: 0;
+  float: left;
+  margin-left: 7px;
+  margin-right: 7px;
+}
+
+.columnHeader {
+  text-align: center;
+  font-style: italic;
+  font-family: 'Playfair Display', serif;
+  height: 1.5em;
+  position: relative;
+}
+
+.columnHeaderSpan {
+  bottom: 0;
+  position: absolute;
 }
 
 .wheel {
   position: relative;
-  width: 1em;
+  width: 0.8em;
   height: 1.1em;
-  border: 1px solid silver;
-  float: left;
-  display: block;
+  border: 1px solid #e7e7e7;
   margin: 1px;
   padding-left: 1px;
   padding-right: 1px;
@@ -22,12 +35,20 @@ body {
 
 .numbers {
   position: absolute;
-  letter-spacing: 3px;
-  color: gray;
+  color: black;
+  width: 12em;
+  font-family: 'Playfair Display', serif;
+}
+
+.number {
+  display: block;
+  float: left;
+  width: 0.7em;
+  text-align: center;
 }
 
 .shadeLeft {
-  opacity: 0.25;
+  opacity: 0.15;
   position: absolute;
   left: 0;
   right: 50%;
@@ -41,7 +62,7 @@ body {
 }
 
 .shadeRight {
-  opacity: 0.25;
+  opacity: 0.15;
   position: absolute;
   left: 50%;
   right: 0;

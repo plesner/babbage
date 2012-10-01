@@ -1,5 +1,6 @@
 var FRAME_RATE = 60;
-var TIME_PER_DIGIT = 200;
+var TIME_PER_DIGIT = 100;
+var TIME_PER_COLUMN = TIME_PER_DIGIT;
 
 /**
  * The state associated with a single animation.
@@ -13,19 +14,18 @@ function Animation(from, to, duration, thunk) {
 }
 
 /**
- * Advances this animation, returning true iff the animation should be
- * scheduled again.
+ * Advances this animation, returning true iff the animation is complete.
  */
 Animation.prototype.tick = function (now) {
   var elapsed = now - this.start;
   if (elapsed >= this.duration) {
-    (this.thunk)(this.to);
-    return false;
+    (this.thunk)(this.to, true);
+    return true;
   } else {
     var fraction = elapsed / this.duration;
     var value = this.from + fraction * (this.to - this.from);
-    (this.thunk)(value);
-    return true;
+    (this.thunk)(value, false);
+    return false;
   }
 };
 
@@ -58,14 +58,15 @@ Animator.prototype.ensureRunning = function () {
  * Executes a single animator tick.
  */
 Animator.prototype.tick = function () {
-  var nextAnimations = [];
+  // Store the current state of the animation list.
+  var lastAnimations = this.animations;
+  var nextAnimations = this.animations = [];
   var now = Date.now();
-  this.animations.forEach(function (animation) {
-    if (animation.tick(now))
+  lastAnimations.forEach(function (animation) {
+    if (!animation.tick(now))
       nextAnimations.push(animation);
   });
-  this.animations = nextAnimations;
-  if (this.animations.length > 0) {
+  if (nextAnimations.length > 0) {
     window.setTimeout(this.tick.bind(this), 1000 / FRAME_RATE);
   } else {
     this.isRunning = false;
@@ -102,11 +103,8 @@ function Digit(span) {
  */
 Digit.prototype.setValue = function (value) {
   this.currentValue = value;
-  var width = this.span.clientWidth;
-  var letterWidth = width / 12;
-  var letterOffset = letterWidth * value;
-  var digitCenter = (letterWidth / 2) + 1;
-  this.span.style.left = "-" + (letterOffset + digitCenter) + "px";
+  var left = 0.7 * (value + 0.80);
+  this.span.style.left = "-" + left + "em";
 };
 
 /**
@@ -132,6 +130,11 @@ Digit.prototype.showValue = function (value, options) {
   var to = value;
   if (from == to)
     return;
+  var animate = ("animate" in options) ? options.animate : true;
+  if (!animate) {
+    this.setValue(value);
+    return;
+  }
   var distance;
   if (to < from) {
     distance = (10 + to) - from;
@@ -158,37 +161,46 @@ Digit.create = function (builder) {
       .begin("div")
         .addClass("shadeRight")
       .end("div")
-      .begin("span")
-        .addClass("numbers")
-        .appendText("901234567890")
+      .begin("div")
+        .addClass("numbers");
+  for (var i = 0; i <= 11; i++) {
+    var label = (9 + i) % 10;
+    builder
+      .begin("div")
+        .addClass("number")
+        .addClass("number-" + label)
+        .appendText(label)
+      .end("div");
+  }
+  builder
         .withCurrentNode(function (node) { span = node; })
-      .end("span")
+      .end("div")
     .end("div");
   return new Digit(span);
 }
 
-function Column(digits) {
+function Column(header, digits) {
+  this.header = header;
   this.digits = digits;
+  this.value = 0;
 }
 
-Column.prototype.setElements = function (digits) {
-  for (var i = 0; i < this.digits.length; i++) {
-    var digitValue = digits[i];
-    if (!digitValue)
-      digitValue = 0;
-    this.digits[i].setValue(digitValue);
-  }
+Column.prototype.setHeader = function (html) {
+  this.header.innerHTML = html;
+};
+
+Column.prototype.getValue = function () {
+  return this.value;
 };
 
 /**
  * Shows the given array of elements in this column.
  */
 Column.prototype.showElements = function (digits, options) {
-  for (var i = 0; i < this.digits.length; i++) {
-    var digitValue = digits[i];
-    if (!digitValue)
-      digitValue = 0;
-    this.digits[i].showValue(digitValue, options);
+  var count = this.digits.length;
+  for (var i = 0; i < count; i++) {
+    var digitValue = digits[i] || 0;
+    this.digits[count - i - 1].showValue(digitValue, options);
   }
 };
 
@@ -196,6 +208,7 @@ Column.prototype.showElements = function (digits, options) {
  * Shows a normal decimal number in this column.
  */
 Column.prototype.showNumber = function (value, options) {
+  this.value = value;
   var elms = [];
   while (value > 0) {
     elms.push(value % 10);
@@ -204,27 +217,90 @@ Column.prototype.showNumber = function (value, options) {
   this.showElements(elms, options);
 }
 
-Column.create = function (builder) {
+Column.create = function (builder, options) {
+  var digitCount = options.digits || 10;
+  var header;
   builder
     .begin("div")
-    .addClass("column");
+      .addClass("column")
+      .begin("div")
+        .addClass("columnHeader")
+        .begin("span")
+          .addClass("columnHeaderSpan")
+          .withCurrentNode(function (node) { header = node; })
+        .end("span")
+      .end("div")
   var digits = [];
-  for (var i = 0; i < 10; i++) {
+  for (var i = 0; i < digitCount; i++) {
     digits.push(Digit.create(builder));
   }
-  builder.end("div");
-  var result = new Column(digits);
-  result.setElements([]);
+  builder
+    .end("div");
+  var result = new Column(header, digits);
+  result.showNumber(0, {animate: false});
   return result;
 };
 
+function DiffEngine(columns) {
+  this.columns = columns;
+}
+
+/**
+ * Shows the given numbers in the columns.
+ */
+DiffEngine.prototype.showNumbers = function (entries, options) {
+  for (var i = 0; i < this.columns.length; i++) {
+    var value = entries[i] || 0;
+    this.columns[i].showNumber(value, options);
+  }
+};
+
+/**
+ * Initializes the difference engine with the given entries
+ * in the columns.
+ */
+DiffEngine.prototype.initialize = function (entries) {
+  this.showNumbers(entries, {});
+};
+
+DiffEngine.prototype.step = function () {
+  var lastStepped = 7;
+  var lastValue = 0;
+  Animator.get().animate(6, 0, 7 * TIME_PER_COLUMN, function (progress) {
+    while (progress < lastStepped) {
+      var nextIndex = --lastStepped;
+      var next = this.columns[nextIndex];
+      var newValue = next.getValue() + lastValue;
+      next.showNumber(newValue, {});
+      lastValue = newValue;
+    }
+  }.bind(this));
+};
+
+/**
+ * Creates a new difference engine widget.
+ */
+DiffEngine.create = function (builder, optionsOpt) {
+  var options = optionsOpt || {};
+  var columnCount = options.columns || 7;
+  var columns = [];
+  for (var i = 0; i < columnCount; i++) {
+    var column = Column.create(builder, options);
+    if (i == 0) {
+      column.setHeader("T");
+    } else {
+      column.setHeader("D<sup>" + i + "</sup>");
+    }
+    columns.push(column);
+  }
+  return new DiffEngine(columns);
+}
+
 function main() {
   var builder = DomBuilder.attach(document.getElementById("root"));
-  var column = Column.create(builder);
-  var i = 65536 * 65536;
-  window.setInterval(function () {
-    column.showNumber(i++, {
-      shortestPath: true
-    });
-  }, 2000);
+  var diffEngine = DiffEngine.create(builder);
+  diffEngine.initialize([9, 5, 2]);
+  document.getElementById("click").addEventListener("click", function () {
+    diffEngine.step();
+  });
 }
