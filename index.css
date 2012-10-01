@@ -1,0 +1,55 @@
+body {
+  font-size: 12pt;
+  font-family: sans-serif;
+}
+
+.column {
+  width: 0;
+}
+
+.wheel {
+  position: relative;
+  width: 1em;
+  height: 1.1em;
+  border: 1px solid silver;
+  float: left;
+  display: block;
+  margin: 1px;
+  padding-left: 1px;
+  padding-right: 1px;
+  overflow: hidden;
+}
+
+.numbers {
+  position: absolute;
+  letter-spacing: 3px;
+  color: gray;
+}
+
+.shadeLeft {
+  opacity: 0.25;
+  position: absolute;
+  left: 0;
+  right: 50%;
+  top: 0;
+  bottom: 0;
+  background-image: linear-gradient(right , rgb(255,255,255) 50%, rgb(0,0,0) 85%);
+  background-image: -o-linear-gradient(right , rgb(255,255,255) 50%, rgb(0,0,0) 85%);
+  background-image: -moz-linear-gradient(right , rgb(255,255,255) 50%, rgb(0,0,0) 85%);
+  background-image: -webkit-linear-gradient(right , rgb(255,255,255) 50%, rgb(0,0,0) 85%);
+  background-image: -ms-linear-gradient(right , rgb(255,255,255) 50%, rgb(0,0,0) 85%);
+}
+
+.shadeRight {
+  opacity: 0.25;
+  position: absolute;
+  left: 50%;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background-image: linear-gradient(left , rgb(255,255,255) 50%, rgb(0,0,0) 85%);
+  background-image: -o-linear-gradient(left , rgb(255,255,255) 50%, rgb(0,0,0) 85%);
+  background-image: -moz-linear-gradient(left , rgb(255,255,255) 50%, rgb(0,0,0) 85%);
+  background-image: -webkit-linear-gradient(left , rgb(255,255,255) 50%, rgb(0,0,0) 85%);
+  background-image: -ms-linear-gradient(left , rgb(255,255,255) 50%, rgb(0,0,0) 85%);
+}
