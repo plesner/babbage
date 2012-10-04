@@ -278,9 +278,10 @@ DiffEngine.prototype.initialize = function (entries) {
 };
 
 DiffEngine.prototype.step = function () {
-  var lastStepped = 7;
+  var colCount = this.columns.length;
+  var lastStepped = colCount;
   var lastValue = 0;
-  Animator.get().animate(6, 0, 7 * TIME_PER_COLUMN, function (progress) {
+  Animator.get().animate(colCount - 1, 0, colCount * TIME_PER_COLUMN, function (progress) {
     while (progress < lastStepped) {
       var nextIndex = --lastStepped;
       var next = this.columns[nextIndex];
