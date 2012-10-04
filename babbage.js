@@ -108,6 +108,15 @@ Digit.prototype.setValue = function (value) {
 };
 
 /**
+ * Applies a function that turns the curve f(x)=x from a straight line into
+ * a curve that starts off increasing slowly, then quickly, the slowly again.
+ * The d argument controls how quickly. D=1 makes this the identity.
+ */
+function curveGradient(v, d) {
+  return Math.pow(v, d) / (1 - d * v + d * v * v);
+}
+
+/**
  * Moves this digit a single tick. For simplicity we accept progress values
  * outside the "meaningful" interval between 0 and 10 as a way to express
  * wrapping around between 9 and 0.
@@ -119,7 +128,12 @@ Digit.prototype.tick = function (from, progress) {
   } else if (value < 0) {
     value += 10;
   }
-  this.setValue(value);
+  var integer = (value >> 0);
+  var fraction = value - integer;
+  // Curve the fractional part to make the transitions look more stepwise,
+  // like on a curta.
+  var stepwise = integer + curveGradient(fraction, 2);
+  this.setValue(stepwise);
 }
 
 /**
@@ -282,7 +296,7 @@ DiffEngine.prototype.step = function () {
  */
 DiffEngine.create = function (builder, optionsOpt) {
   var options = optionsOpt || {};
-  var columnCount = options.columns || 7;
+  var columnCount = options.cols || 7;
   var columns = [];
   for (var i = 0; i < columnCount; i++) {
     var column = Column.create(builder, options);
@@ -293,13 +307,64 @@ DiffEngine.create = function (builder, optionsOpt) {
     }
     columns.push(column);
   }
-  return new DiffEngine(columns);
+  var result = new DiffEngine(columns);
+  if (options.init)
+    result.initialize(options.init);
+  return result;
 }
 
+/**
+ * A wrapper around the query parameters to this page.
+ */
+function Parameters(params) {
+  this.params = params;
+}
+
+/**
+ * Returns the value of a list parameter.
+ */
+Parameters.prototype.getList = function (name, defaultOpt) {
+  if (this.params.hasOwnProperty(name)) {
+    return this.params[name].split(",");
+  } else {
+    return defaultOpt;
+  }
+};
+
+/**
+ * Returns the raw value of a parameter.
+ */
+Parameters.prototype.get = function (name, defaultOpt) {
+  if (this.params.hasOwnProperty(name)) {
+    return this.params[name];
+  } else {
+    return defaultOpt;
+  }
+};
+
+/**
+ * Parses the query parameters to this page.
+ */
+Parameters.parse = function () {
+  var allParts = window.location.search.split(/[?&]/);
+  var parts = allParts.filter(function (elm) { return elm.length > 0; });
+  var result = {};
+  parts.forEach(function (part) {
+    var pair = part.split("=");
+    result[pair[0]] = pair[1];
+  });
+  return new Parameters(result);
+};
+
 function main() {
+  var params = Parameters.parse();
+  var options = {
+    init: params.getList("init", []).map(function (str) { return Number(str); }),
+    cols: Number(params.get("cols", 8)),
+    digits: Number(params.get("digits", 10))
+  };
   var builder = DomBuilder.attach(document.getElementById("root"));
-  var diffEngine = DiffEngine.create(builder);
-  diffEngine.initialize([9, 5, 2]);
+  var diffEngine = DiffEngine.create(builder, options);
   document.getElementById("click").addEventListener("click", function () {
     diffEngine.step();
   });
