@@ -3,6 +3,50 @@ var TIME_PER_DIGIT = 100;
 var TIME_PER_COLUMN = TIME_PER_DIGIT;
 
 /**
+ * A tens complement value.
+ */
+function Value(value, limit) {
+  if (value < 0) {
+    value += limit + 1;
+  } else if (value > limit) {
+    value -= limit + 1;
+  }
+  this.value = value;
+  this.limit = limit;
+}
+
+Value.ZERO = new Value(0, 0);
+
+/**
+ * Adds one value to another.
+ */
+Value.prototype.plus = function (that) {
+  return new Value(this.value + that.value, this.limit);
+};
+
+/**
+ * Returns an array of the base 10 digits of this value.
+ */
+Value.prototype.getDigits = function () {
+  var result = [];
+  var current = this.value;
+  while (current != 0) {
+    result.push(current % 10);
+    current = (current / 10) << 0;
+  }
+  return result;
+};
+
+/**
+ * Returns the value to display for this number.
+ */
+Value.prototype.getDisplayValue = function () {
+  return (this.value >= (this.limit / 2))
+    ? this.value - (this.limit + 1)
+    : this.value;
+};
+
+/**
  * The state associated with a single animation.
  */
 function Animation(from, to, duration, thunk) {
@@ -103,7 +147,7 @@ function Digit(span) {
  */
 Digit.prototype.setValue = function (value) {
   this.currentValue = value;
-  var left = 0.7 * (value + 0.80);
+  var left = 0.7 * (value + 0.90);
   this.span.style.left = "-" + left + "em";
 };
 
@@ -223,40 +267,25 @@ Column.prototype.showElements = function (digits, options) {
  */
 Column.prototype.showNumber = function (value, options) {
   this.value = value;
-  var elms = [];
-  while (value > 0) {
-    elms.push(value % 10);
-    value = (value / 10) << 0;
-  }
-  this.showElements(elms, options);
+  this.showElements(value.getDigits(), options);
 }
 
-Column.create = function (builder, options) {
-  var digitCount = options.digits || 10;
-  var header;
-  builder
-    .begin("div")
-      .addClass("column")
-      .begin("div")
-        .addClass("columnHeader")
-        .begin("span")
-          .addClass("columnHeaderSpan")
-          .withCurrentNode(function (node) { header = node; })
-        .end("span")
-      .end("div")
+Column.create = function (rows, digitCount) {
   var digits = [];
   for (var i = 0; i < digitCount; i++) {
-    digits.push(Digit.create(builder));
+    var cell = rows[i].insertCell(-1);
+    digits.push(Digit.create(DomBuilder.attach(cell)));
   }
-  builder
-    .end("div");
-  var result = new Column(header, digits);
-  result.showNumber(0, {animate: false});
+  var result = new Column(null, digits);
+  result.showNumber(Value.ZERO, {animate: false});
   return result;
 };
 
-function DiffEngine(columns) {
+function DiffEngine(columns, paper, limit, point) {
   this.columns = columns;
+  this.paper = paper;
+  this.limit = limit;
+  this.point = point;
 }
 
 /**
@@ -264,7 +293,7 @@ function DiffEngine(columns) {
  */
 DiffEngine.prototype.showNumbers = function (entries, options) {
   for (var i = 0; i < this.columns.length; i++) {
-    var value = entries[i] || 0;
+    var value = entries[i] || Value.ZERO;
     this.columns[i].showNumber(value, options);
   }
 };
@@ -274,22 +303,42 @@ DiffEngine.prototype.showNumbers = function (entries, options) {
  * in the columns.
  */
 DiffEngine.prototype.initialize = function (entries) {
-  this.showNumbers(entries, {});
+  var limit = this.limit;
+  function toTensComplement(value) {
+    return new Value(value, limit);
+  }
+  this.showNumbers(entries.map(toTensComplement), {});
 };
 
 DiffEngine.prototype.step = function () {
   var colCount = this.columns.length;
   var lastStepped = colCount;
-  var lastValue = 0;
-  Animator.get().animate(colCount - 1, 0, colCount * TIME_PER_COLUMN, function (progress) {
+  var lastValue = Value.ZERO;
+  Animator.get().animate(colCount - 1, 0, colCount * TIME_PER_COLUMN, function (progress, atEnd) {
     while (progress < lastStepped) {
       var nextIndex = --lastStepped;
       var next = this.columns[nextIndex];
-      var newValue = next.getValue() + lastValue;
-      next.showNumber(newValue, {});
+      var newValue = next.getValue().plus(lastValue);
+      var showPromise = next.showNumber(newValue, {});
+      if (nextIndex == 0) {
+        this.printValue(newValue);
+      }
       lastValue = newValue;
     }
   }.bind(this));
+};
+
+DiffEngine.prototype.printValue = function (value) {
+  var number = value.getDisplayValue() / Math.pow(10, this.point);
+  DomBuilder
+    .attach(this.paper)
+    .begin("tr")
+      .begin("td")
+        .addClass("printline")
+        .appendText(String(number))
+      .end("td")
+    .end("tr");
+  this.paper.parentNode.scrollTop = this.paper.parentNode.scrollHeight
 };
 
 /**
@@ -297,18 +346,44 @@ DiffEngine.prototype.step = function () {
  */
 DiffEngine.create = function (builder, optionsOpt) {
   var options = optionsOpt || {};
+  var digitCount = options.digits || 10;
   var columnCount = options.cols || 7;
-  var columns = [];
-  for (var i = 0; i < columnCount; i++) {
-    var column = Column.create(builder, options);
-    if (i == 0) {
-      column.setHeader("T");
-    } else {
-      column.setHeader("D<sup>" + i + "</sup>");
+  var point = options.point || 0;
+  var rows = [];
+  var table;
+  var paper;
+  // Gave up and used tables.
+  builder
+      .begin("table")
+        .addClass("columns")
+        .withCurrentNode(function (n) { table = n; })
+      .end("table")
+      .begin("div")
+        .addClass("printout")
+        .begin("div")
+          .addClass("paper")
+          .begin("table")
+            .addClass("papertable")
+            .withCurrentNode(function (n) { paper = n; })
+          .end("table")
+        .end("div")
+      .end("div");
+  for (var i = digitCount; i >= 0; i--) {
+    if (i > 0 && i == point) {
+      DomBuilder
+          .attach(table.insertRow(-1))          
+          .begin("td")
+            .withCurrentNode(function (n) { n.setAttribute("colspan", columnCount); })
+            .addClass("pointrow")
+          .end("td");
     }
-    columns.push(column);
+    rows.push(table.insertRow(-1));
   }
-  var result = new DiffEngine(columns);
+  var columns = [];
+  for (var i = 0; i < columnCount; i++)
+    columns.push(Column.create(rows, digitCount));
+  var limit = Math.pow(10, digitCount) - 1;
+  var result = new DiffEngine(columns, paper, limit, point);
   if (options.init)
     result.initialize(options.init);
   return result;
@@ -362,7 +437,8 @@ function main() {
   var options = {
     init: params.getList("init", []).map(function (str) { return Number(str); }),
     cols: Number(params.get("cols", 8)),
-    digits: Number(params.get("digits", 10))
+    digits: Number(params.get("digits", 10)),
+    point: Number(params.get("point", 0))
   };
   var builder = DomBuilder.attach(document.getElementById("root"));
   var diffEngine = DiffEngine.create(builder, options);

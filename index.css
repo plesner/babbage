@@ -1,12 +1,53 @@
 body {
   font-size: 12pt;
   font-family: sans-serif;
+  position: relative;
 }
 
 .column {
-  float: left;
-  margin-left: 7px;
-  margin-right: 7px;
+}
+
+.columns {
+  position: absolute;
+  left: 0;
+  width: 60%;
+  top: 0;
+  height: 80%;
+}
+
+.printout {
+  position: absolute;
+  right: 0;
+  width: 40%;
+  top: 0;
+  height: 80%;
+}
+
+.printline {
+  font-family: 'Droid Sans Mono';
+  font-size: 10pt;
+}
+
+.paper {
+  position: absolute;
+  background: #FFFFEC;
+  border: 1px solid #E0E0E0;
+  left: 2px;
+  right: 2px;
+  top: 2px;
+  bottom: 2px;
+  overflow-y: scroll;
+}
+
+.papertable {
+}
+
+.controls {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 20%;
 }
 
 .columnHeader {
@@ -17,19 +58,26 @@ body {
   position: relative;
 }
 
+.pointrow {
+  border-bottom: 3px double silver;
+  height: 0px;
+  padding: 0px;
+}
+
 .columnHeaderSpan {
   bottom: 0;
   position: absolute;
 }
 
 .wheel {
+  font-size: 11pt;
   position: relative;
   width: 0.8em;
   height: 1.1em;
   border: 1px solid #e7e7e7;
   margin: 1px;
-  padding-left: 1px;
-  padding-right: 1px;
+  margin-left: auto;
+  margin-right: auto;
   overflow: hidden;
 }
 
@@ -45,6 +93,7 @@ body {
   float: left;
   width: 0.7em;
   text-align: center;
+  margin-top: -0.15em;
 }
 
 .shadeLeft {
