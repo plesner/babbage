@@ -6,9 +6,10 @@ var TIME_PER_COLUMN = TIME_PER_DIGIT;
  * A tens complement value.
  */
 function Value(value, limit) {
-  if (value < 0) {
+  while (value < 0) {
     value += limit + 1;
-  } else if (value > limit) {
+  }
+  while (value > limit) {
     value -= limit + 1;
   }
   this.value = value;
@@ -32,7 +33,7 @@ Value.prototype.getDigits = function () {
   var current = this.value;
   while (current != 0) {
     result.push(current % 10);
-    current = (current / 10) << 0;
+    current = Math.floor(current / 10);
   }
   return result;
 };
@@ -147,8 +148,8 @@ function Digit(span) {
  */
 Digit.prototype.setValue = function (value) {
   this.currentValue = value;
-  var left = 0.7 * (value + 0.90);
-  this.span.style.left = "-" + left + "em";
+  var left = 9 * (value + 0.85);
+  this.span.style.left = "-" + left + "pt";
 };
 
 /**
@@ -281,11 +282,13 @@ Column.create = function (rows, digitCount) {
   return result;
 };
 
-function DiffEngine(columns, paper, limit, point) {
+function DiffEngine(columns, paper, limit, point, round) {
   this.columns = columns;
   this.paper = paper;
   this.limit = limit;
   this.point = point;
+  this.initial = [];
+  this.round = round;
 }
 
 /**
@@ -302,12 +305,20 @@ DiffEngine.prototype.showNumbers = function (entries, options) {
  * Initializes the difference engine with the given entries
  * in the columns.
  */
-DiffEngine.prototype.initialize = function (entries) {
+DiffEngine.prototype.initialize = function (entries, options) {
+  this.initial = entries;
   var limit = this.limit;
   function toTensComplement(value) {
     return new Value(value, limit);
   }
-  this.showNumbers(entries.map(toTensComplement), {});
+  var value = entries.map(toTensComplement);
+  this.showNumbers(value, options);
+  this.printValue(value[0]);
+};
+
+DiffEngine.prototype.reset = function () {
+  this.paper.innerHTML = "";
+  this.initialize(this.initial, {shortestPath: true});
 };
 
 DiffEngine.prototype.step = function () {
@@ -329,7 +340,12 @@ DiffEngine.prototype.step = function () {
 };
 
 DiffEngine.prototype.printValue = function (value) {
-  var number = value.getDisplayValue() / Math.pow(10, this.point);
+  var number = value.getDisplayValue();
+  if (this.round > 0) {
+    var factor = Math.pow(10, this.round);
+    number = Math.round(number / factor) * factor;
+  }
+  number = number / Math.pow(10, this.point);
   DomBuilder
     .attach(this.paper)
     .begin("tr")
@@ -354,10 +370,13 @@ DiffEngine.create = function (builder, optionsOpt) {
   var paper;
   // Gave up and used tables.
   builder
-      .begin("table")
-        .addClass("columns")
-        .withCurrentNode(function (n) { table = n; })
-      .end("table")
+      .begin("div")
+        .addClass("tableHolder")
+        .begin("table")
+          .addClass("columns")
+          .withCurrentNode(function (n) { table = n; })
+        .end("table")
+      .end("div")
       .begin("div")
         .addClass("printout")
         .begin("div")
@@ -368,7 +387,7 @@ DiffEngine.create = function (builder, optionsOpt) {
           .end("table")
         .end("div")
       .end("div");
-  for (var i = digitCount; i >= 0; i--) {
+  for (var i = digitCount; i > 0; i--) {
     if (i > 0 && i == point) {
       DomBuilder
           .attach(table.insertRow(-1))          
@@ -383,9 +402,9 @@ DiffEngine.create = function (builder, optionsOpt) {
   for (var i = 0; i < columnCount; i++)
     columns.push(Column.create(rows, digitCount));
   var limit = Math.pow(10, digitCount) - 1;
-  var result = new DiffEngine(columns, paper, limit, point);
+  var result = new DiffEngine(columns, paper, limit, point, options.round);
   if (options.init)
-    result.initialize(options.init);
+    result.initialize(options.init, {});
   return result;
 }
 
@@ -438,11 +457,17 @@ function main() {
     init: params.getList("init", []).map(function (str) { return Number(str); }),
     cols: Number(params.get("cols", 8)),
     digits: Number(params.get("digits", 10)),
-    point: Number(params.get("point", 0))
+    point: Number(params.get("point", 0)),
+    round: Number(params.get("round", 0))
   };
   var builder = DomBuilder.attach(document.getElementById("root"));
   var diffEngine = DiffEngine.create(builder, options);
   document.getElementById("click").addEventListener("click", function () {
     diffEngine.step();
   });
+  document.getElementById("reset").addEventListener("click", function () {
+    diffEngine.reset();
+  })
 }
+
+window.addEventListener("DOMContentLoaded", main);

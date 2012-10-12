@@ -1,45 +1,65 @@
 body {
   font-size: 12pt;
   font-family: sans-serif;
-  position: relative;
+  position: static;
+}
+
+.container {
+  position: absolute;
+  border: 1px solid #D0D0D0;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  border-radius: 5px;
+  background-image: linear-gradient(top , #F0F0F0 25%, #FAFAFA 75%);
+  background-image: -o-linear-gradient(top , #F0F0F0 25%, #FAFAFA 75%);
+  background-image: -moz-linear-gradient(top , #F0F0F0 25%, #FAFAFA 75%);
+  background-image: -webkit-linear-gradient(top , #F0F0F0 25%, #FAFAFA 75%);
+  background-image: -ms-linear-gradient(top , #F0F0F0 25%, #FAFAFA 75%);
 }
 
 .column {
 }
 
-.columns {
+.tableholder {
   position: absolute;
   left: 0;
-  width: 60%;
+  width: 50%;
   top: 0;
-  height: 80%;
+  bottom: 30px;
+}
+
+.columns {
+  position: relative;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
 }
 
 .printout {
   position: absolute;
   right: 0;
-  width: 40%;
+  width: 50%;
   top: 0;
-  height: 80%;
+  bottom: 30px;
 }
 
 .printline {
-  font-family: 'Droid Sans Mono';
+  font-family: monospace;
   font-size: 10pt;
 }
 
 .paper {
   position: absolute;
-  background: #FFFFEC;
-  border: 1px solid #E0E0E0;
-  left: 2px;
-  right: 2px;
-  top: 2px;
-  bottom: 2px;
-  overflow-y: scroll;
-}
-
-.papertable {
+  background: white;
+  border: 1px solid #D0D0D0;
+  left: 0px;
+  right: 4px;
+  top: 4px;
+  bottom: 4px;
+  overflow-y: auto;
 }
 
 .controls {
@@ -47,19 +67,19 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  height: 20%;
+  height: 30px;
 }
 
 .columnHeader {
   text-align: center;
   font-style: italic;
-  font-family: 'Playfair Display', serif;
+  font-family: sans-serif;
   height: 1.5em;
   position: relative;
 }
 
 .pointrow {
-  border-bottom: 3px double silver;
+  border-bottom: 3px double gray;
   height: 0px;
   padding: 0px;
 }
@@ -72,28 +92,30 @@ body {
 .wheel {
   font-size: 11pt;
   position: relative;
-  width: 0.8em;
+  width: 1em;
   height: 1.1em;
   border: 1px solid #e7e7e7;
   margin: 1px;
   margin-left: auto;
   margin-right: auto;
   overflow: hidden;
+  background: white;
+  border: 1px solid #D0D0D0;
 }
 
 .numbers {
   position: absolute;
   color: black;
   width: 12em;
-  font-family: 'Playfair Display', serif;
+  font-family: sans-serif;
 }
 
 .number {
   display: block;
   float: left;
-  width: 0.7em;
+  width: 9pt;
   text-align: center;
-  margin-top: -0.15em;
+  margin-top: -0.05em;
 }
 
 .shadeLeft {
@@ -122,4 +144,39 @@ body {
   background-image: -moz-linear-gradient(left , rgb(255,255,255) 50%, rgb(0,0,0) 85%);
   background-image: -webkit-linear-gradient(left , rgb(255,255,255) 50%, rgb(0,0,0) 85%);
   background-image: -ms-linear-gradient(left , rgb(255,255,255) 50%, rgb(0,0,0) 85%);
+}
+
+.button {
+  font-size: 10pt;
+  position: absolute;
+  top: 50%;
+  margin-top: -1em;
+  text-decoration: none;
+  width: 2.75em;
+  border: 1px solid #D0D0D0;
+  padding: 2px;
+  border-radius: 5px;
+  text-align: center;
+  color: black;
+  background-image: linear-gradient(bottom , #F0F0F0 25%, #FAFAFA 75%);
+  background-image: -o-linear-gradient(bottom , #F0F0F0 25%, #FAFAFA 75%);
+  background-image: -moz-linear-gradient(bottom , #F0F0F0 25%, #FAFAFA 75%);
+  background-image: -webkit-linear-gradient(bottom , #F0F0F0 25%, #FAFAFA 75%);
+  background-image: -ms-linear-gradient(bottom , #F0F0F0 25%, #FAFAFA 75%);
+}
+
+a:hover {
+  background-image: linear-gradient(bottom , #E0E0E0 25%, #FAFAFA 75%);
+  background-image: -o-linear-gradient(bottom , #E0E0E0 25%, #FAFAFA 75%);
+  background-image: -moz-linear-gradient(bottom , #E0E0E0 25%, #FAFAFA 75%);
+  background-image: -webkit-linear-gradient(bottom , #E0E0E0 25%, #FAFAFA 75%);
+  background-image: -ms-linear-gradient(bottom , #E0E0E0 25%, #FAFAFA 75%);
+}
+
+#click {
+  right: 1em;
+}
+
+#reset {
+  left: 1em;
 }
