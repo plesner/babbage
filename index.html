@@ -2,6 +2,8 @@
   <head>
     <script src="dombuilder.js"></script>
     <script src="babbage.js"></script>
+    <script src="promise.js"></script>
+    <script src="trace.js"></script>
     <link href='http://fonts.googleapis.com/css?family=Playfair+Display' rel='stylesheet' type='text/css'>
     <link href='http://fonts.googleapis.com/css?family=Droid+Sans+Mono' rel='stylesheet' type='text/css'>
     <link rel="stylesheet" href="index.css">
@@ -10,8 +12,9 @@
 	<div class="container">
       <div id="root"></div>
       <div class="controls">
-        <a href="javascript:" id="click" class="button">step</a>
-        <a href="javascript:" id="reset" class="button">reset</a>
+        <a href="javascript:" id="click" class="control button">step</a>
+        <div id="turbodiv" class="control"><input type="checkbox" id="turbo" />Turbo</div>
+        <a href="javascript:" id="reset" class="control button">reset</a>
       </div>
     </div>
   </body>

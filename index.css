@@ -68,6 +68,7 @@ body {
   right: 0;
   bottom: 0;
   height: 30px;
+  text-align: center;
 }
 
 .columnHeader {
@@ -147,10 +148,6 @@ body {
 }
 
 .button {
-  font-size: 10pt;
-  position: absolute;
-  top: 50%;
-  margin-top: -1em;
   text-decoration: none;
   width: 2.75em;
   border: 1px solid #D0D0D0;
@@ -158,11 +155,19 @@ body {
   border-radius: 5px;
   text-align: center;
   color: black;
+  position: absolute;
+  margin-top: -1em;
   background-image: linear-gradient(bottom , #F0F0F0 25%, #FAFAFA 75%);
   background-image: -o-linear-gradient(bottom , #F0F0F0 25%, #FAFAFA 75%);
   background-image: -moz-linear-gradient(bottom , #F0F0F0 25%, #FAFAFA 75%);
   background-image: -webkit-linear-gradient(bottom , #F0F0F0 25%, #FAFAFA 75%);
   background-image: -ms-linear-gradient(bottom , #F0F0F0 25%, #FAFAFA 75%);
+}
+
+.control {
+  font-size: 10pt;
+  top: 50%;
+  color: #373737;
 }
 
 a:hover {
@@ -175,6 +180,10 @@ a:hover {
 
 #click {
   right: 1em;
+}
+
+#turbodiv {
+  margin-top: 0.4em;
 }
 
 #reset {

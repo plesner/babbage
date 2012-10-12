@@ -1,6 +1,6 @@
 var FRAME_RATE = 60;
 var TIME_PER_DIGIT = 100;
-var TIME_PER_COLUMN = TIME_PER_DIGIT;
+var TIME_PER_DIGIT_TURBO = 20;
 
 /**
  * A tens complement value.
@@ -166,7 +166,7 @@ function curveGradient(v, d) {
  * outside the "meaningful" interval between 0 and 10 as a way to express
  * wrapping around between 9 and 0.
  */
-Digit.prototype.tick = function (from, progress) {
+Digit.prototype.tick = function (promise, from, progress, atEnd) {
   var value = from + progress;
   if (value >= 10) {
     value -= 10;
@@ -179,6 +179,8 @@ Digit.prototype.tick = function (from, progress) {
   // like on a curta.
   var stepwise = integer + curveGradient(fraction, 2);
   this.setValue(stepwise);
+  if (atEnd)
+    promise.fulfill(stepwise);
 }
 
 /**
@@ -188,7 +190,7 @@ Digit.prototype.showValue = function (value, options) {
   var from = this.currentValue;
   var to = value;
   if (from == to)
-    return;
+    return promise.Promise.of(to);
   var animate = ("animate" in options) ? options.animate : true;
   if (!animate) {
     this.setValue(value);
@@ -205,8 +207,18 @@ Digit.prototype.showValue = function (value, options) {
     // is shorter the other way.
     distance -= 10;
   }
-  var time = TIME_PER_DIGIT * Math.abs(distance);
-  Animator.get().animate(0, distance, time, this.tick.bind(this, from));
+  var timePerDigit = options.timePerDigit || TIME_PER_DIGIT;
+  var time = timePerDigit * Math.abs(distance);
+  var result = new promise.Promise();
+  Animator.get().animate(0, distance, time, this.tick.bind(this, result, from));
+  return result;
+};
+
+/**
+ * Adds the given value to the current value, ignoring carry.
+ */
+Digit.prototype.addValueNoCarry = function (value, options) {
+  return this.showValue(this.currentValue + value, options);
 };
 
 Digit.create = function (builder) {
@@ -257,10 +269,59 @@ Column.prototype.getValue = function () {
  */
 Column.prototype.showElements = function (digits, options) {
   var count = this.digits.length;
-  for (var i = 0; i < count; i++) {
-    var digitValue = digits[i] || 0;
-    this.digits[count - i - 1].showValue(digitValue, options);
+  var animate = 'animate' in options ? options.animate : true;
+  if (!animate) {
+    for (var i = 0; i < count; i++)
+      this.digits[count - i - 1].showValue(digits[i] || 0, options);
+    return promise.Promise.of(null);
   }
+  var count = this.digits.length;
+  var result = new promise.Promise();
+  var digitsProgress = [];
+  stepUp(0, count, options.timePerDigit || TIME_PER_DIGIT, function (index) {
+    var digitValue = digits[index] || 0;
+    var wheel = this.digits[count - index - 1];
+    digitsProgress.push(wheel.showValue(digitValue, options));
+    if (index == count - 1) {
+      var digitsDonePromise = promise.Promise.join(digitsProgress);
+      digitsDonePromise.forwardTo(result);
+    }    
+  }.bind(this));
+  return result;
+};
+
+/**
+ * Add a number to this column. We first add the digits to the column,
+ * ignoring carry, to get the effect of a full revolution when adding
+ * negative numbers even if the digit will return to its previous value,
+ * and then we add the carry simply by setting the correct result. This
+ * has the added benefit that the final result is sure to reflect the
+ * desired value, independent of the digit adding and carrying logic which
+ * is just for show.
+ */
+Column.prototype.addNumber = function (delta, options) {
+  var newValue = this.value.plus(delta);
+  this.value = newValue;
+  var count = this.digits.length;
+  var deltaDigits = delta.getDigits();
+  var newDigits = newValue.getDigits();
+  var result = new promise.Promise();
+  var digitsProgress = [];
+  stepUp(0, count, options.timePerDigit || TIME_PER_DIGIT, function (index) {
+    var digitValue = deltaDigits[index] || 0;
+    var wheel = this.digits[count - index - 1];
+    var noCarry = wheel.addValueNoCarry(digitValue, options);
+    var withCarry = noCarry.lazyThen(function () {
+      var newDigitValue = newDigits[index] || 0;
+      return wheel.showValue(newDigitValue, options);
+    });
+    digitsProgress.push(withCarry);
+    if (index == count - 1) {
+      var digitsDonePromise = promise.Promise.join(digitsProgress);
+      digitsDonePromise.forwardTo(result);
+    }
+  }.bind(this));
+  return result;
 };
 
 /**
@@ -268,7 +329,7 @@ Column.prototype.showElements = function (digits, options) {
  */
 Column.prototype.showNumber = function (value, options) {
   this.value = value;
-  this.showElements(value.getDigits(), options);
+  return this.showElements(value.getDigits(), options);
 }
 
 Column.create = function (rows, digitCount) {
@@ -289,16 +350,26 @@ function DiffEngine(columns, paper, limit, point, round) {
   this.point = point;
   this.initial = [];
   this.round = round;
+  this.actionChain = promise.Promise.of(null);
+  this.turbo = false;
 }
+
+DiffEngine.prototype.pushAction = function (thunk) {
+  var oldChain = this.actionChain;
+  this.actionChain = new promise.Promise();
+  oldChain.lazyThen(thunk).forwardTo(this.actionChain);
+};
 
 /**
  * Shows the given numbers in the columns.
  */
 DiffEngine.prototype.showNumbers = function (entries, options) {
+  var colShows = [];
   for (var i = 0; i < this.columns.length; i++) {
     var value = entries[i] || Value.ZERO;
-    this.columns[i].showNumber(value, options);
+    colShows.push(this.columns[i].showNumber(value, options));
   }
+  return promise.Promise.join(colShows);
 };
 
 /**
@@ -312,31 +383,51 @@ DiffEngine.prototype.initialize = function (entries, options) {
     return new Value(value, limit);
   }
   var value = entries.map(toTensComplement);
-  this.showNumbers(value, options);
+  var result = this.showNumbers(value, options);
   this.printValue(value[0]);
+  return result;
 };
 
 DiffEngine.prototype.reset = function () {
   this.paper.innerHTML = "";
-  this.initialize(this.initial, {shortestPath: true});
+  var options = {shortestPath: true};
+  options.timePerDigit = (this.turbo ? TIME_PER_DIGIT_TURBO : TIME_PER_DIGIT);
+  return this.initialize(this.initial, options);
 };
 
+/**
+ * Invokes the given thunk once for each step through the integers from from
+ * to to, waiting the given delay between each call.
+ */
+function stepUp(from, to, delay, thunk) {
+  var length = to - from;
+  var lastStepped = 0;
+  Animator.get().animate(from, to, length * delay, function (progress, atEnd) {
+    while (progress > lastStepped) {
+      var nextIndex = lastStepped++;
+      thunk(nextIndex);
+    }
+  });
+}
+
 DiffEngine.prototype.step = function () {
-  var colCount = this.columns.length;
-  var lastStepped = colCount;
   var lastValue = Value.ZERO;
-  Animator.get().animate(colCount - 1, 0, colCount * TIME_PER_COLUMN, function (progress, atEnd) {
-    while (progress < lastStepped) {
-      var nextIndex = --lastStepped;
-      var next = this.columns[nextIndex];
-      var newValue = next.getValue().plus(lastValue);
-      var showPromise = next.showNumber(newValue, {});
-      if (nextIndex == 0) {
-        this.printValue(newValue);
-      }
-      lastValue = newValue;
+  var length = this.columns.length;
+  var allColumns = [];
+  var result = new promise.Promise();
+  var options = {timePerDigit: (this.turbo ? TIME_PER_DIGIT_TURBO : TIME_PER_DIGIT)};
+  stepUp(0, length, options.timePerDigit, function (nextIndex) {
+    var next = this.columns[length - nextIndex - 1];
+    var newValue = next.getValue().plus(lastValue);
+    allColumns.push(next.addNumber(lastValue, options));
+    lastValue = newValue;
+    if (nextIndex == length - 1) {
+      promise.Promise.join(allColumns).forwardTo(result).onFulfilled(function () {
+        this.printValue(newValue);          
+      }.bind(this));
     }
   }.bind(this));
+  return result;
 };
 
 DiffEngine.prototype.printValue = function (value) {
@@ -404,7 +495,7 @@ DiffEngine.create = function (builder, optionsOpt) {
   var limit = Math.pow(10, digitCount) - 1;
   var result = new DiffEngine(columns, paper, limit, point, options.round);
   if (options.init)
-    result.initialize(options.init, {});
+    result.initialize(options.init, {animate: false});
   return result;
 }
 
@@ -458,15 +549,20 @@ function main() {
     cols: Number(params.get("cols", 8)),
     digits: Number(params.get("digits", 10)),
     point: Number(params.get("point", 0)),
-    round: Number(params.get("round", 0))
+    round: Number(params.get("round", 0)),
+    showTurbo: !!params.get("turbo", false)
   };
   var builder = DomBuilder.attach(document.getElementById("root"));
   var diffEngine = DiffEngine.create(builder, options);
   document.getElementById("click").addEventListener("click", function () {
-    diffEngine.step();
+    diffEngine.pushAction(diffEngine.step.bind(diffEngine));
+  });
+  document.getElementById("turbodiv").style.visibility = options.showTurbo ? "default" : "hidden";
+  document.getElementById("turbo").addEventListener("change", function () {
+    diffEngine.turbo = turbo.checked;
   });
   document.getElementById("reset").addEventListener("click", function () {
-    diffEngine.reset();
+    diffEngine.pushAction(diffEngine.reset.bind(diffEngine));
   })
 }
 

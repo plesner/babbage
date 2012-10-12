@@ -338,6 +338,7 @@ Promise.prototype.forwardTo = function (other) {
     onFulfilled: other.fulfill.bind(other),
     onFailed: other.fail.bind(other)
   });
+  return this;
 };
 
 /**
