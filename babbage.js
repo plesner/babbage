@@ -148,7 +148,7 @@ function Digit(span) {
  */
 Digit.prototype.setValue = function (value) {
   this.currentValue = value;
-  var left = 9 * (value + 0.85);
+  var left = 9 * value;
   this.span.style.left = "-" + left + "pt";
 };
 
@@ -343,7 +343,7 @@ Column.create = function (rows, digitCount) {
   return result;
 };
 
-function DiffEngine(columns, paper, limit, point, round) {
+function DiffEngine(columns, paper, limit, point, round, precision) {
   this.columns = columns;
   this.paper = paper;
   this.limit = limit;
@@ -352,6 +352,7 @@ function DiffEngine(columns, paper, limit, point, round) {
   this.round = round;
   this.actionChain = promise.Promise.of(null);
   this.turbo = false;
+  this.precision = precision;
 }
 
 DiffEngine.prototype.pushAction = function (thunk) {
@@ -437,12 +438,14 @@ DiffEngine.prototype.printValue = function (value) {
     number = Math.round(number / factor) * factor;
   }
   number = number / Math.pow(10, this.point);
+  var fixed = this.point - this.round - 1;
+  var str = (fixed > 0) ? number.toFixed(fixed) : String(number);
   DomBuilder
     .attach(this.paper)
     .begin("tr")
       .begin("td")
         .addClass("printline")
-        .appendText(String(number))
+        .appendText(str)
       .end("td")
     .end("tr");
   this.paper.parentNode.scrollTop = this.paper.parentNode.scrollHeight
@@ -493,7 +496,7 @@ DiffEngine.create = function (builder, optionsOpt) {
   for (var i = 0; i < columnCount; i++)
     columns.push(Column.create(rows, digitCount));
   var limit = Math.pow(10, digitCount) - 1;
-  var result = new DiffEngine(columns, paper, limit, point, options.round);
+  var result = new DiffEngine(columns, paper, limit, point, options.round, digitCount);
   if (options.init)
     result.initialize(options.init, {animate: false});
   return result;

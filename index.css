@@ -80,8 +80,8 @@ body {
 }
 
 .pointrow {
-  border-bottom: 3px double gray;
-  height: 0px;
+  background: silver;
+  height: 2px;
   padding: 0px;
 }
 
@@ -93,8 +93,8 @@ body {
 .wheel {
   font-size: 11pt;
   position: relative;
-  width: 1em;
-  height: 1.1em;
+  width: 11pt;
+  height: 12pt;
   border: 1px solid #e7e7e7;
   margin: 1px;
   margin-left: auto;
@@ -107,8 +107,9 @@ body {
 .numbers {
   position: absolute;
   color: black;
-  width: 12em;
+  width: 131pt;
   font-family: sans-serif;
+  margin-left: -11px;
 }
 
 .number {
@@ -116,7 +117,14 @@ body {
   float: left;
   width: 9pt;
   text-align: center;
-  margin-top: -0.05em;
+  margin-top: -1pt;
+}
+
+/* O web programming how your quirks enrich my life. */
+@-moz-document url-prefix() {
+  .number {
+    margin-top: 1pt;
+  }
 }
 
 .shadeLeft {
