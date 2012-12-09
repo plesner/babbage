@@ -464,23 +464,23 @@ DiffEngine.create = function (builder, optionsOpt) {
   var paper;
   // Gave up and used tables.
   builder
+    .begin("div")
+      .addClass("tableHolder")
+      .begin("table")
+        .addClass("columns")
+        .withCurrentNode(function (n) { table = n; })
+      .end("table")
+    .end("div")
+    .begin("div")
+      .addClass("printout")
       .begin("div")
-        .addClass("tableHolder")
+        .addClass("paper")
         .begin("table")
-          .addClass("columns")
-          .withCurrentNode(function (n) { table = n; })
+          .addClass("papertable")
+          .withCurrentNode(function (n) { paper = n; })
         .end("table")
       .end("div")
-      .begin("div")
-        .addClass("printout")
-        .begin("div")
-          .addClass("paper")
-          .begin("table")
-            .addClass("papertable")
-            .withCurrentNode(function (n) { paper = n; })
-          .end("table")
-        .end("div")
-      .end("div");
+    .end("div");
   for (var i = digitCount; i > 0; i--) {
     if (i > 0 && i == point) {
       DomBuilder
@@ -500,6 +500,91 @@ DiffEngine.create = function (builder, optionsOpt) {
   if (options.init)
     result.initialize(options.init, {animate: false});
   return result;
+}
+
+function AnaEngine() {
+  
+}
+
+AnaEngine.create = function (builder, options) {
+  builder
+    .begin("div")
+      .begin("div")
+        .addClass("opstream")
+      .end("div")
+      .begin("div")
+        .addClass("varstream")
+      .end("div")
+    .end("div")
+}
+
+function Program(ops, ins, vars) {
+  this.ops = ops;
+  this.ins = ins;
+  this.vars = vars;
+  console.log(this);
+}
+
+function Times(n) {
+  this.n = n;
+}
+
+function Minus(n) {
+  this.n = n;
+}
+
+function Divide(n) {
+  this.n = n;
+}
+
+function ReadAndRestore(n) {
+  this.n = n;
+}
+
+function ReadAndZero(n) {
+  this.n = n;
+}
+
+Program.parse = function (str) {
+  var parts = str.split(".");
+  var opStr = parts[0];
+  var inStr = parts[1];
+  var varStr = parts[2];
+  var ops = [];
+  for (var i = 0; i < opStr.length; i += 4) {
+    var count = Number(opStr.substring(i+1, i+4));
+    var op;
+    switch (opStr.charAt(i)) {
+      case "x":
+        op = new Times(count);
+        break;
+      case "s":
+        op = new Minus(count);
+        break;
+      case "d":
+        op = new Divide(count);
+        break;
+    }
+    ops.push(op);
+  }
+  var ins = [];
+  for (var i = 0; i < inStr.length; i += 2)
+    ins.push(Number(inStr.substring(i, i + 2)));
+  var vars = [];
+  for (var i = 0; i < varStr.length; i += 3) {
+    var value = Number(varStr.substring(i + 1, i + 3));
+    var v;
+    switch (varStr.charAt(i)) {
+      case "r":
+        v = new ReadAndRestore(value);
+        break;
+      case "z":
+        v = new ReadAndZero(value);
+        break;
+    }
+    vars.push(v);
+  }
+  return new Program(ops, ins, vars);
 }
 
 /**
@@ -545,17 +630,7 @@ Parameters.parse = function () {
   return new Parameters(result);
 };
 
-function main() {
-  var params = Parameters.parse();
-  var options = {
-    init: params.getList("init", []).map(function (str) { return Number(str); }),
-    cols: Number(params.get("cols", 8)),
-    digits: Number(params.get("digits", 10)),
-    point: Number(params.get("point", 0)),
-    round: Number(params.get("round", 0)),
-    showTurbo: !!params.get("turbo", false)
-  };
-  var builder = DomBuilder.attach(document.getElementById("root"));
+function createDiffEngine(builder, options) {
   var diffEngine = DiffEngine.create(builder, options);
   document.getElementById("click").addEventListener("click", function () {
     diffEngine.pushAction(diffEngine.step.bind(diffEngine));
@@ -566,7 +641,32 @@ function main() {
   });
   document.getElementById("reset").addEventListener("click", function () {
     diffEngine.pushAction(diffEngine.reset.bind(diffEngine));
-  })
+  });
+}
+
+function createAnaEngine(builder, options) {
+  var program = Program.parse(options.program);
+  var anaEngine = AnaEngine.create(builder, options);
+}
+
+function main() {
+  var params = Parameters.parse();
+  var options = {
+    init: params.getList("init", []).map(function (str) { return Number(str); }),
+    cols: Number(params.get("cols", 8)),
+    digits: Number(params.get("digits", 10)),
+    point: Number(params.get("point", 0)),
+    round: Number(params.get("round", 0)),
+    showTurbo: !!params.get("turbo", false),
+    type: params.get("type", "differential"),
+    program: params.get("program", "")
+  };
+  var builder = DomBuilder.attach(document.getElementById("root"));
+  if (options.type == "analytical") {
+    createAnaEngine(builder, options);
+  } else {
+    createDiffEngine(builder, options);
+  }
 }
 
 window.addEventListener("DOMContentLoaded", main);
